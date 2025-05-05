@@ -56,4 +56,4 @@ def explorar_sqlite(caminho_db):
         print("🔒 Conexão encerrada.")
 
 # Executar o menu
-explorar_sqlite("users.db")
+explorar_sqlite("./../users.db")

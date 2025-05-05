@@ -13,6 +13,8 @@ from src.db_mongo import save_expense, get_user_expenses
 from src.process_input import processar_texto, processar_consulta
 import bcrypt
 from typing import Optional
+from calendar import monthrange
+from bson import ObjectId
 
 load_dotenv()
 
@@ -216,7 +218,7 @@ def consultar_gastos(req: QueryRequest, user: User = Depends(get_user_from_token
             fim = datetime.strptime(parametros["end_date"], "%Y-%m-%d")
             
             if inicio.month == fim.month and inicio.year == fim.year:
-                if inicio.day == 1 and fim.day == calendar.monthrange(fim.year, fim.month)[1]:
+                if inicio.day == 1 and fim.day == monthrange(fim.year, fim.month)[1]:
                     periodo = f"do mês de {inicio.strftime('%B de %Y')}"
                 else:
                     periodo = f"de {inicio.strftime('%d/%m/%Y')} a {fim.strftime('%d/%m/%Y')}"
@@ -252,3 +254,46 @@ def listar_gastos(
         return {"status": "sucesso", "gastos": gastos}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar gastos: {str(e)}")
+    
+    
+#### codigo de testes
+
+# Classe para inserir dados de teste
+class TestExpenseRequest(BaseModel):
+    user_id: int
+    valor: float
+    tipo: str
+    data: str
+    descricao: str
+
+@app.post("/dev/add-test-expense")
+def add_test_expense(expense: TestExpenseRequest, request: Request = None):
+    """
+    Endpoint para criar gastos de teste sem usar o GPT.
+    Apenas para desenvolvimento.
+    """
+    try:
+        # Criar estrutura do gasto
+        gasto = {
+            "user_id": expense.user_id,
+            "valor": expense.valor,
+            "tipo": expense.tipo,
+            "data": expense.data,
+            "descricao": expense.descricao
+        }
+        
+        # Salvar no MongoDB - a função save_expense já deve converter o ObjectId para string
+        result = save_expense(gasto)
+        
+        # Como estamos usando uma função que já faz a conversão, podemos retornar diretamente
+        return {
+            "status": "sucesso",
+            "gasto": result,
+            "message": "Gasto de teste adicionado com sucesso"
+        }
+    except Exception as e:
+        # Registrar o erro para debugging
+        print(f"Erro ao adicionar gasto de teste: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao adicionar gasto de teste: {str(e)}")
+
+#####

@@ -55,7 +55,7 @@ def ensure_user_exists(user_id):
     else:
         # Retorna o ID do MongoDB para o usuário
         return str(mongo_user["_id"])
-
+    
 def get_user_expenses(user_id, start_date=None, end_date=None, tipo=None):
     """
     Recupera despesas do usuário com filtros opcionais de data e tipo
@@ -75,7 +75,9 @@ def get_user_expenses(user_id, start_date=None, end_date=None, tipo=None):
     if tipo:
         query["tipo"] = tipo
     
-    return list(expenses_collection.find(query, {"_id": 0}))
+    # Buscar documentos e converter para formato serializável
+    return [convert_mongo_doc(doc) for doc in expenses_collection.find(query)]
+
 
 def save_expense(expense_data):
     """
@@ -85,4 +87,34 @@ def save_expense(expense_data):
     ensure_user_exists(expense_data["user_id"])
     
     # Salvar o gasto
-    return expenses_collection.insert_one(expense_data)
+    result = expenses_collection.insert_one(expense_data)
+    
+    # Adicionar o ID ao documento original
+    expense_data["_id"] = result.inserted_id
+    
+    # Converter para formato serializável
+    return convert_mongo_doc(expense_data)
+
+def convert_mongo_doc(doc):
+    """Converte um documento do MongoDB para um formato JSON serializável"""
+    if doc is None:
+        return None
+    
+    result = {}
+    for key, value in doc.items():
+        # Converter ObjectId para string
+        if isinstance(value, ObjectId):
+            result[key] = str(value)
+        # Lidar com listas que podem conter ObjectId
+        elif isinstance(value, list):
+            result[key] = [
+                str(item) if isinstance(item, ObjectId) else item
+                for item in value
+            ]
+        # Lidar com dicionários aninhados
+        elif isinstance(value, dict):
+            result[key] = convert_mongo_doc(value)
+        else:
+            result[key] = value
+    
+    return result

@@ -1,33 +1,143 @@
 // src/components/GPTInput.jsx
 import { useState } from 'react';
+import { formatDate, formatCurrency } from './../assets/dateformatter';
+
+// Constantes para tipos de erro
+const ERROR_TYPES = {
+  NETWORK: 'network',
+  AUTH: 'auth',
+  SERVER: 'server',
+  VALIDATION: 'validation',
+  UNKNOWN: 'unknown'
+};
+
+// Utilitário para detectar tipo de erro
+const detectErrorType = (error, status) => {
+  if (!navigator.onLine) {
+    return ERROR_TYPES.NETWORK;
+  }
+  
+  if (status === 401 || status === 403) {
+    return ERROR_TYPES.AUTH;
+  }
+  
+  if (status >= 500) {
+    return ERROR_TYPES.SERVER;
+  }
+  
+  if (status === 400 || status === 422) {
+    return ERROR_TYPES.VALIDATION;
+  }
+  
+  return ERROR_TYPES.UNKNOWN;
+};
+
+// Componente de exibição de erro
+const ErrorDisplay = ({ type, message, onRetry, onLogout }) => {
+  const getErrorInfo = () => {
+    switch(type) {
+      case ERROR_TYPES.NETWORK:
+        return {
+          title: 'Erro de conexão',
+          description: 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.',
+          icon: 'wifi_off',
+          action: { label: 'Tentar novamente', handler: onRetry }
+        };
+      case ERROR_TYPES.AUTH:
+        return {
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou ou as credenciais são inválidas.',
+          icon: 'lock',
+          action: { label: 'Fazer login novamente', handler: onLogout }
+        };
+      case ERROR_TYPES.SERVER:
+        return {
+          title: 'Erro no servidor',
+          description: 'Nosso servidor está enfrentando problemas. Tente novamente mais tarde.',
+          icon: 'error',
+          action: { label: 'Tentar novamente', handler: onRetry }
+        };
+      case ERROR_TYPES.VALIDATION:
+        return {
+          title: 'Dados inválidos',
+          description: message || 'Os dados fornecidos são inválidos.',
+          icon: 'warning',
+          action: null
+        };
+      default:
+        return {
+          title: 'Erro inesperado',
+          description: message || 'Ocorreu um erro inesperado.',
+          icon: 'help',
+          action: { label: 'Tentar novamente', handler: onRetry }
+        };
+    }
+  };
+
+  const errorInfo = getErrorInfo();
+
+  return (
+    <div className="w-full bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+      <div className="flex items-start">
+        <span className="material-icons text-red-500 mr-3">{errorInfo.icon}</span>
+        <div>
+          <h3 className="font-medium text-red-800">{errorInfo.title}</h3>
+          <p className="text-sm text-red-600 mt-1">{errorInfo.description}</p>
+          {errorInfo.action && (
+            <button 
+              onClick={errorInfo.action.handler}
+              className="mt-2 text-sm font-medium text-red-700 hover:text-red-900"
+            >
+              {errorInfo.action.label}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function GPTInput() {
   const [input, setInput] = useState('');
   const [resposta, setResposta] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [erro, setErro] = useState('');
-  const [debug, setDebug] = useState([]); // Para armazenar informações de debug
+  const [erro, setErro] = useState(null);
+  const [debug, setDebug] = useState([]);
 
   const getToken = () => {
     return localStorage.getItem('token');
   };
 
-  // Adiciona informação de debug
   const addDebug = (message) => {
     setDebug(prev => [...prev, `${new Date().toISOString().slice(11, 19)}: ${message}`]);
+  };
+
+  const handleRetry = () => {
+    // Só permite retry se tiver input
+    if (input.trim()) {
+      handleEnviar();
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.reload(); // Força recarregar para ir para tela de login
   };
 
   const handleEnviar = async () => {
     if (!input.trim()) return;
     
     setIsLoading(true);
-    setErro('');
+    setErro(null);
     setDebug([]);
     
     try {
       const token = getToken();
       if (!token) {
-        setErro('Você precisa estar logado para usar esta função');
+        setErro({ 
+          type: ERROR_TYPES.AUTH, 
+          message: 'Você precisa estar logado para usar esta função' 
+        });
         setIsLoading(false);
         return;
       }
@@ -57,14 +167,20 @@ export default function GPTInput() {
       // Se houve erro HTTP
       if (!response.ok) {
         let errorText = '';
+        let errorData = {};
+        
         try {
-          const errorData = await response.json();
+          errorData = await response.json();
           errorText = errorData.detail || JSON.stringify(errorData);
         } catch (e) {
           errorText = `Erro HTTP ${response.status}`;
         }
         
         addDebug(`Erro: ${errorText}`);
+        
+        // Detectar o tipo de erro
+        const errorType = detectErrorType(null, response.status);
+        setErro({ type: errorType, message: errorText });
         throw new Error(errorText);
       }
       
@@ -93,7 +209,22 @@ export default function GPTInput() {
     } catch (error) {
       console.error('Erro:', error);
       addDebug(`Erro capturado: ${error.message}`);
-      setErro(error.message || 'Ocorreu um erro ao processar sua solicitação');
+      
+      // Se o erro já foi definido no bloco anterior, não sobrescrevemos
+      if (!erro) {
+        // Verificar se é erro de rede
+        if (!navigator.onLine || error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          setErro({ 
+            type: ERROR_TYPES.NETWORK, 
+            message: 'Não foi possível conectar ao servidor' 
+          });
+        } else {
+          setErro({ 
+            type: ERROR_TYPES.UNKNOWN, 
+            message: error.message || 'Ocorreu um erro ao processar sua solicitação' 
+          });
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -113,10 +244,10 @@ export default function GPTInput() {
               <div>{resposta.categoria}</div>
               
               <div className="font-medium">Valor:</div>
-              <div>R$ {resposta.valor.toFixed(2)}</div>
+              <div>{formatCurrency(resposta.valor)}</div>
               
               <div className="font-medium">Data:</div>
-              <div>{resposta.data}</div>
+              <div>{formatDate(resposta.data, 'medium')}</div>
               
               <div className="font-medium">Descrição:</div>
               <div>{resposta.descricao}</div>
@@ -128,10 +259,14 @@ export default function GPTInput() {
       // Formatação da consulta
       return (
         <div className="w-full bg-gray-100 p-4 rounded-lg shadow-inner text-left mt-2">
-          <h3 className="text-md font-semibold mb-2">Resumo de gastos {resposta.periodo}:</h3>
+          <h3 className="text-md font-semibold mb-2">
+            Resumo de gastos {resposta.periodo}:
+          </h3>
           <div className="bg-white p-3 rounded border">
             <div className="mb-3">
-              <div className="font-medium text-lg">Total: R$ {resposta.total.toFixed(2)}</div>
+              <div className="font-medium text-lg">
+                Total: {formatCurrency(resposta.total)}
+              </div>
             </div>
             
             <div className="mb-3">
@@ -140,7 +275,7 @@ export default function GPTInput() {
                 {Object.entries(resposta.por_categoria).map(([categoria, valor]) => (
                   <React.Fragment key={categoria}>
                     <div>{categoria}:</div>
-                    <div>R$ {valor.toFixed(2)}</div>
+                    <div>{formatCurrency(valor)}</div>
                   </React.Fragment>
                 ))}
               </div>
@@ -154,9 +289,11 @@ export default function GPTInput() {
                     <div key={index} className="text-sm border-b py-2">
                       <div className="flex justify-between">
                         <span>{gasto.tipo}</span>
-                        <span className="font-medium">R$ {gasto.valor.toFixed(2)}</span>
+                        <span className="font-medium">{formatCurrency(gasto.valor)}</span>
                       </div>
-                      <div className="text-xs text-gray-600">{gasto.data} - {gasto.descricao}</div>
+                      <div className="text-xs text-gray-600">
+                        {formatDate(gasto.data, 'relative')} - {gasto.descricao}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -188,9 +325,12 @@ export default function GPTInput() {
       </button>
 
       {erro && (
-        <div className="w-full bg-red-100 text-red-700 p-3 rounded-lg">
-          {erro}
-        </div>
+        <ErrorDisplay 
+          type={erro.type} 
+          message={erro.message} 
+          onRetry={handleRetry}
+          onLogout={handleLogout}
+        />
       )}
 
       {resposta && gerarRespostaLegivel()}

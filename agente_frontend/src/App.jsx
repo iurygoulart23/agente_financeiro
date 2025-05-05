@@ -7,6 +7,9 @@ import ExpenseForm from './components/ExpenseForm';
 import TabelaGastos from './components/TabelaGastos';
 import ExpenseChart from './components/ExpenseChart';
 
+// teste de desenvolvimento
+import DevTools from './components/DevTools';
+
 function App() {
   const [logado, setLogado] = useState(false);
   const [mostrarCadastro, setMostrarCadastro] = useState(false);
@@ -67,20 +70,13 @@ function App() {
           <div className="w-full bg-white rounded-lg shadow-md p-6">
             <GPTInput />
           </div>
-          
-          <div className="w-full bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold mb-4">Adicionar Nova Despesa</h2>
-            <ExpenseForm onAddExpense={adicionarGasto} />
-          </div>
-          
+
+          {logado && process.env.NODE_ENV !== 'production' && <DevTools />}
+        
           <div className="w-full bg-white rounded-lg shadow-md p-6">
             <ExpenseChart gastos={gastos} />
           </div>
           
-          <div className="w-full bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold mb-4">Histórico de Gastos</h2>
-            <TabelaGastos gastos={gastos} />
-          </div>
         </div>
       </div>
     </Layout>
