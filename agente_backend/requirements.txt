@@ -4,3 +4,7 @@ python-dotenv
 python-jose
 sqlalchemy
 bcrypt
+pymongo 
+python-jose[cryptography]
+passlib[bcrypt]
+openai
