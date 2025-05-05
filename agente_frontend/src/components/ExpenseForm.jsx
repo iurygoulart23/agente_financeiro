@@ -1,32 +1,32 @@
 import React, { useState } from 'react';
 
-export default function ExpenseForm({ onAdd }) {
+export default function ExpenseForm({ onAddExpense }) {
   const [categoria, setCategoria] = useState('');
   const [valor, setValor] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!categoria || !valor) return;
-    onAdd({ categoria, valor: parseFloat(valor) });
+    onAddExpense({ categoria, valor: parseFloat(valor) });
     setCategoria('');
     setValor('');
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row gap-4">
+    <form onSubmit={handleSubmit} className="w-full flex flex-col sm:flex-row gap-4">
       <input
         type="text"
         placeholder="Categoria"
         value={categoria}
         onChange={(e) => setCategoria(e.target.value)}
-        className="p-2 border rounded-md"
+        className="p-2 border rounded-md flex-1"
       />
       <input
         type="number"
         placeholder="Valor"
         value={valor}
         onChange={(e) => setValor(e.target.value)}
-        className="p-2 border rounded-md"
+        className="p-2 border rounded-md flex-1"
       />
       <button
         type="submit"

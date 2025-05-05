@@ -11,11 +11,12 @@ function App() {
   const [logado, setLogado] = useState(false);
   const [mostrarCadastro, setMostrarCadastro] = useState(false);
   const [gastos, setGastos] = useState([]);
-  const [usuario, setUsuario] = useState(''); // novo estado para exibir nome no header
+  const [usuario, setUsuario] = useState(''); // estado para exibir nome no header
 
   const adicionarGasto = (gasto) => {
     setGastos([...gastos, gasto]);
   };
+  
   if (!logado) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-900 px-4">
@@ -59,13 +60,28 @@ function App() {
   
   return (
     <Layout username={usuario} onLogout={() => setLogado(false)}>
-      <div className="w-full flex justify-center bg-red-100">
-        <div className="w-full max-w-3xl px-6 sm:px-10 md:px-16 lg:px-24 flex flex-col gap-12 bg-red-100">
-          <GPTInput />
-          <ExpenseForm onAddExpense={adicionarGasto} />
-          <ExpenseChart gastos={gastos} />
-          <TabelaGastos gastos={gastos} />
+      <div className="w-full flex justify-center">
+        {/* Container principal com largura máxima e padding adequado */}
+        <div className="w-full max-w-4xl px-4 sm:px-6 py-8 flex flex-col gap-8">
+          {/* Cada componente com suas próprias margens e tamanho controlado */}
+          <div className="w-full bg-white rounded-lg shadow-md p-6">
+            <GPTInput />
           </div>
+          
+          <div className="w-full bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold mb-4">Adicionar Nova Despesa</h2>
+            <ExpenseForm onAddExpense={adicionarGasto} />
+          </div>
+          
+          <div className="w-full bg-white rounded-lg shadow-md p-6">
+            <ExpenseChart gastos={gastos} />
+          </div>
+          
+          <div className="w-full bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold mb-4">Histórico de Gastos</h2>
+            <TabelaGastos gastos={gastos} />
+          </div>
+        </div>
       </div>
     </Layout>
   );
