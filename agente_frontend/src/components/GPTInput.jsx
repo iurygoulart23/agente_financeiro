@@ -19,9 +19,9 @@ export default function GPTInput() {
   };
 
   return (
-    <div className="w-full flex flex-col items-center gap-4">
+    <div className="w-full max-w-2xl flex flex-col items-stretch gap-4">
       <textarea
-        className="w-full max-w-2xl h-24 p-4 border border-gray-300 rounded-xl shadow-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+        className="max-w-2xl h-24 p-4 border border-gray-300 rounded-xl shadow-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
         placeholder="Digite um comando como 'Gastei R$ 200 com mercado hoje'"
         value={input}
         onChange={(e) => setInput(e.target.value)}

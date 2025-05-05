@@ -13,20 +13,20 @@ export default function ExpenseForm({ onAdd }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row gap-4 items-center">
+    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row gap-4">
       <input
         type="text"
         placeholder="Categoria"
         value={categoria}
         onChange={(e) => setCategoria(e.target.value)}
-        className="flex-1 p-2 border rounded-md"
+        className="p-2 border rounded-md"
       />
       <input
         type="number"
         placeholder="Valor"
         value={valor}
         onChange={(e) => setValor(e.target.value)}
-        className="flex-1 p-2 border rounded-md"
+        className="p-2 border rounded-md"
       />
       <button
         type="submit"

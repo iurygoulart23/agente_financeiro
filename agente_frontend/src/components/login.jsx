@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LockClosedIcon, UserIcon } from '@heroicons/react/20/solid';
+import { LockClosedIcon, UserIcon } from '@heroicons/react/24/solid';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -7,10 +7,8 @@ export default function Login({ onLogin }) {
   const [erro, setErro] = useState('');
 
   const handleLogin = async (e) => {
-    e.preventDefault(); // evita Login
-    setErro(""); // Limpa o erro ao tentar fazer login
-
-    console.log("Enviando login para o backend...");
+    e.preventDefault();
+    setErro('');
 
     try {
       const res = await fetch("http://localhost:8000/login", {
@@ -30,53 +28,56 @@ export default function Login({ onLogin }) {
         });
 
         if (verifyRes.ok) {
-          onLogin(username);
+          const userData = await verifyRes.json();
+          onLogin(userData.username);
         } else {
-          alert("Token inválido");
+          setErro("Erro ao verificar token");
         }
       } else {
-        alert("Credenciais inválidas");
+        setErro("Usuário ou senha incorretos");
       }
     } catch (error) {
-      console.error("Erro na requisição de login:", error);
-      alert("Erro na conexão com o servidor");
+      console.error("Erro ao fazer login:", error);
+      setErro("Erro de rede");
     }
   };
 
   return (
-    <form onSubmit={handleLogin} className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md space-y-4">
-      <h2 className="text-2xl font-bold text-center text-blue-600">Login</h2>
-    
-      {erro && <div className="text-red-500 text-sm text-center">{erro}</div>}
-
-      <div className="flex items-center border rounded px-3 py-2">
-        <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
-        <input
-          type="text"
-          placeholder="username"
-          className="p-2 border rounded"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="bg-white px-6 py-4 rounded-xl shadow-md w-[300px]">
+        <h2 className="text-xl font-semibold mb-4 text-center text-gray-800">Login</h2>
+        <form onSubmit={handleLogin} className="space-y-3">
+          <div className="flex items-center border border-gray-300 rounded px-3 py-1">
+            <UserIcon className="h-4 w-4 text-gray-500 mr-2" />
+            <input
+              type="text"
+              placeholder="Usuário"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full text-sm outline-none"
+              required
+            />
+          </div>
+          <div className="flex items-center border border-gray-300 rounded px-3 py-1">
+            <LockClosedIcon className="h-4 w-4 text-gray-500 mr-2" />
+            <input
+              type="password"
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full text-sm outline-none"
+              required
+            />
+          </div>
+          {erro && <p className="text-red-500 text-xs">{erro}</p>}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white text-sm py-2 rounded hover:bg-blue-700 transition"
+          >
+            Entrar
+          </button>
+        </form>
       </div>
-      
-      <div className="flex items-center border rounded px-3 py-2">
-        <LockClosedIcon className="h-5 w-5 text-gray-400 mr-2" />
-        <input
-          type="password"
-          placeholder="password"
-          className="p-2 border rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-
-      <button
-        type="submit"
-        className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-      >
-        Entrar
-      </button>
-    </form>
+    </div>
   );
 }
