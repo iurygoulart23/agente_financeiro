@@ -1,4 +1,3 @@
-# agente_backend/main.py
 from fastapi import FastAPI, HTTPException, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,7 +6,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
 from sqlalchemy.orm import Session
-from src.models import User
+from src.models import User, UserSettings
 from src.db import SessionLocal, engine, Base
 from src.db_mongo import save_expense, get_user_expenses
 from src.process_input import processar_texto, processar_consulta
@@ -15,6 +14,7 @@ import bcrypt
 from typing import Optional
 from calendar import monthrange
 from bson import ObjectId
+from src.analytics import gerar_dicas_personalizadas
 
 load_dotenv()
 
@@ -297,3 +297,178 @@ def add_test_expense(expense: TestExpenseRequest, request: Request = None):
         raise HTTPException(status_code=500, detail=f"Erro ao adicionar gasto de teste: {str(e)}")
 
 #####
+
+
+@app.get("/dashboard")
+def get_dashboard(user: User = Depends(get_user_from_token)):
+    """
+    Retorna dados para o dashboard personalizado do usuário
+    """
+    try:
+        # Obter data atual e primeiro dia do mês
+        hoje = datetime.now()
+        primeiro_dia_mes = hoje.replace(day=1).strftime("%Y-%m-%d")
+        ultimo_dia_mes = hoje.replace(day=calendar.monthrange(hoje.year, hoje.month)[1]).strftime("%Y-%m-%d")
+        
+        # Obter mês anterior
+        mes_anterior_inicio = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1).strftime("%Y-%m-%d")
+        mes_anterior_fim = (hoje.replace(day=1) - timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        # Obter configurações do usuário, criando se não existir
+        user_settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        if not user_settings:
+            user_settings = UserSettings(user_id=user.id)
+            db.add(user_settings)
+            db.commit()
+            db.refresh(user_settings)
+        
+        # Meta mensal (configuração do usuário)
+        meta_mensal = user_settings.meta_mensal
+        
+        # Buscar gastos do mês atual
+        gastos_mes_atual = get_user_expenses(
+            user_id=user.id,
+            start_date=primeiro_dia_mes,
+            end_date=ultimo_dia_mes
+        )
+        
+        # Buscar gastos do mês anterior
+        gastos_mes_anterior = get_user_expenses(
+            user_id=user.id,
+            start_date=mes_anterior_inicio,
+            end_date=mes_anterior_fim
+        )
+        
+        # Calcular totais
+        total_mes_atual = sum(gasto["valor"] for gasto in gastos_mes_atual)
+        total_mes_anterior = sum(gasto["valor"] for gasto in gastos_mes_anterior) if gastos_mes_anterior else 0
+        
+        # Calcular comparação percentual
+        comparacao = 0
+        if total_mes_anterior > 0:
+            comparacao = ((total_mes_atual - total_mes_anterior) / total_mes_anterior) * 100
+        
+        # Agrupar por categoria
+        gastos_por_categoria = {}
+        for gasto in gastos_mes_atual:
+            categoria = gasto["tipo"]
+            if categoria not in gastos_por_categoria:
+                gastos_por_categoria[categoria] = 0
+            gastos_por_categoria[categoria] += gasto["valor"]
+        
+        # Encontrar categoria principal
+        categoria_principal = {"nome": "nenhuma", "valor": 0, "porcentagem": 0}
+        if gastos_por_categoria:
+            nome_categoria = max(gastos_por_categoria, key=gastos_por_categoria.get)
+            valor_categoria = gastos_por_categoria[nome_categoria]
+            porcentagem = (valor_categoria / total_mes_atual) * 100 if total_mes_atual > 0 else 0
+            
+            categoria_principal = {
+                "nome": nome_categoria,
+                "valor": valor_categoria,
+                "porcentagem": round(porcentagem, 1)
+            }
+        
+        # Formatar dados para o gráfico
+        grafico_categorias = [
+            {"categoria": cat, "valor": val} 
+            for cat, val in gastos_por_categoria.items()
+        ]
+        
+        # Calcular projeção para o final do mês
+        dias_passados = hoje.day
+        dias_no_mes = calendar.monthrange(hoje.year, hoje.month)[1]
+        projecao_mes = (total_mes_atual / dias_passados) * dias_no_mes if dias_passados > 0 else 0
+        
+        
+        # Gerar dicas personalizadas
+        dicas = gerar_dicas_personalizadas(
+            user.id, 
+            gastos_mes_atual, 
+            gastos_mes_anterior,
+            categoria_principal,
+            projecao_mes,
+            meta_mensal
+        )
+        
+        return {
+            "gastosMes": total_mes_atual,
+            "comparacaoMesAnterior": round(comparacao, 1),
+            "categoriaPrincipal": categoria_principal,
+            "gastosPorCategoria": grafico_categorias,
+            "ultimasTransacoes": sorted(gastos_mes_atual, key=lambda x: x["data"], reverse=True)[:5],
+            "projecaoMes": round(projecao_mes, 2),
+            "metaMensal": meta_mensal,
+            "dicas": dicas
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar dashboard: {str(e)}")
+
+@app.get("/configuracoes")
+def get_configuracoes(user: User = Depends(get_user_from_token), db: Session = Depends(get_db)):
+    """
+    Retorna as configurações do usuário
+    """
+    try:
+        # Obter configurações do usuário
+        user_settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        
+        # Se não existir, retornar configurações padrão
+        if not user_settings:
+            return {
+                "meta_mensal": 2000.0,
+                "meta_configurada": False
+            }
+        
+        return {
+            "meta_mensal": user_settings.meta_mensal,
+            "meta_configurada": True
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar configurações: {str(e)}")
+
+@app.post("/configurar-meta")
+def configurar_meta(
+    dados: dict, 
+    user: User = Depends(get_user_from_token), 
+    db: Session = Depends(get_db)
+):
+    """
+    Configura a meta mensal do usuário
+    """
+    try:
+        if "meta_mensal" not in dados:
+            raise HTTPException(status_code=400, detail="Meta mensal não informada")
+        
+        meta_mensal = float(dados["meta_mensal"])
+        
+        if meta_mensal <= 0:
+            raise HTTPException(status_code=400, detail="Meta mensal deve ser maior que zero")
+        
+        # Buscar configurações existentes ou criar novas
+        user_settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        
+        if not user_settings:
+            user_settings = UserSettings(
+                user_id=user.id,
+                meta_mensal=meta_mensal
+            )
+            db.add(user_settings)
+        else:
+            user_settings.meta_mensal = meta_mensal
+            user_settings.updated_at = datetime.utcnow()
+        
+        db.commit()
+        
+        return {
+            "status": "sucesso",
+            "mensagem": "Meta configurada com sucesso",
+            "meta_mensal": meta_mensal
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao configurar meta: {str(e)}")

@@ -1,4 +1,5 @@
 import sqlite3
+import os
 
 def explorar_sqlite(caminho_db):
     try:
@@ -55,5 +56,14 @@ def explorar_sqlite(caminho_db):
         conn.close()
         print("🔒 Conexão encerrada.")
 
+
+path_file = os.path.abspath(__file__)
+path_dir = os.path.dirname(path_file)
+path_db = os.path.join(path_dir, "..", "users.db")
+
+if not os.path.exists(path_db):
+    print("❌ O banco de dados não existe.")
+    exit(1)
+
 # Executar o menu
-explorar_sqlite("./../users.db")
+explorar_sqlite(path_db)

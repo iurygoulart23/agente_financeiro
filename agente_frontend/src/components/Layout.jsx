@@ -18,49 +18,53 @@ function MenuItem({ icon, onClick, title }) {
   );
 }
 
-export default function Layout({ username, onLogout, children }) {
+export default function Layout({ username, onLogout, navegarPara, paginaAtual, children }) {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col items-center">
-    {/* Top bar com ícones de texto em vez de ícones svg */}
-    <div className="w-full bg-gray-800 shadow-md p-3 flex justify-center gap-8 sticky top-0 z-10">
-      <button
-        title={username ? `Usuário: ${username}` : "Perfil"}
-        className="text-gray-300 hover:text-blue-400 transition flex items-center"
-      >
-        <span className="material-icons">person</span>
-      </button>
-      
-      <button
-        title="Gastos"
-        className="text-gray-300 hover:text-blue-400 transition flex items-center"
-      >
-        <span className="material-icons">receipt_long</span>
-      </button>
-      
-      <button
-        title="Relatórios"
-        className="text-gray-300 hover:text-blue-400 transition flex items-center"
-      >
-        <span className="material-icons">bar_chart</span>
-      </button>
-      
-      <button
-        title="Configurações"
-        className="text-gray-300 hover:text-blue-400 transition flex items-center"
-      >
-        <span className="material-icons">settings</span>
-      </button>
-      
-      <button
-        onClick={onLogout}
-        title="Sair"
-        className="text-gray-300 hover:text-blue-400 transition flex items-center"
-      >
-        <span className="material-icons">logout</span>
-      </button>
-    </div>
+      {/* Top bar com ícones de texto em vez de ícones svg */}
+      <div className="w-full bg-gray-800 shadow-md p-3 flex justify-center gap-8 sticky top-0 z-10">
+        <button
+          title={username ? `Usuário: ${username}` : "Perfil"}
+          className="text-gray-300 hover:text-blue-400 transition flex items-center"
+        >
+          <span className="material-icons">person</span>
+        </button>
+        
+        <button
+          title="Gastos"
+          className="text-gray-300 hover:text-blue-400 transition flex items-center"
+          onClick={() => navegarPara('home')}
+        >
+          <span className="material-icons">receipt_long</span>
+        </button>
+        
+        <button
+          title="Relatórios"
+          className="text-gray-300 hover:text-blue-400 transition flex items-center"
+        >
+          <span className="material-icons">bar_chart</span>
+        </button>
+        
+        <button
+          onClick={() => navegarPara('config')}
+          title="Configurações"
+          className={`text-gray-300 hover:text-blue-400 transition flex items-center ${
+            paginaAtual === 'config' ? 'text-blue-400' : ''
+          }`}
+        >
+          <span className="material-icons">settings</span>
+        </button>
+        
+        <button
+          onClick={onLogout}
+          title="Sair"
+          className="text-gray-300 hover:text-blue-400 transition flex items-center"
+        >
+          <span className="material-icons">logout</span>
+        </button>
+      </div>
 
-      {/* Logo e Título - Sem repetir o nome do usuário */}
+      {/* Logo e Título */}
       <div className="flex items-center justify-center mt-8 mb-6">
         <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mr-3">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">

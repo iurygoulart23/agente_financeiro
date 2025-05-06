@@ -5,10 +5,12 @@ export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setErro('');
+    setIsLoading(true);
 
     try {
       const res = await fetch("http://localhost:8000/login", {
@@ -17,8 +19,10 @@ export default function Login({ onLogin }) {
         body: JSON.stringify({ username, password }),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        const data = await res.json();
+        
         localStorage.setItem("token", data.access_token);
 
         const verifyRes = await fetch("http://localhost:8000/verify", {
@@ -34,7 +38,12 @@ export default function Login({ onLogin }) {
           setErro("Erro ao verificar token");
         }
       } else {
-        setErro("Usuário ou senha incorretos");
+        // Verifica o código de erro
+        if (res.status === 403 && data.detail.includes("não está liberado")) {
+          setErro("Usuário não liberado para usar a plataforma. Entre em contato com o administrador.");
+        } else {
+          setErro("Usuário ou senha incorretos");
+        }
       }
     } catch (error) {
       console.error("Erro ao fazer login:", error);
